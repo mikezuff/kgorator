@@ -51,7 +51,7 @@ func (d *ds18b20) Sample() (thermo.F, error) {
 		return 0, fmt.Errorf("Reading ds18b20 %s: bad format", string(*d))
 	}
 
-	n, err := strconv.ParseUint(string(line[cidx+1:]), 10, 32)
+	n, err := strconv.ParseUint(string(bytes.TrimSpace(line[cidx+1:])), 10, 32)
 	if err != nil {
 		return 0, fmt.Errorf("Error parsing temperature ds18b20 %s: %s", string(*d), err)
 	}
