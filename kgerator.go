@@ -18,7 +18,7 @@ import (
 
 const (
 	ds18b20Path         = "/sys/bus/w1/devices/28-000004a82f20/w1_slave"
-	REFRIG_PIN          = 18
+	REFRIG_PIN          = 17
 	RECOVERY_SEC        = 600
 	SAMPLE_SEC          = 30
 	THERMOMETER_RETRIES = 3
@@ -66,6 +66,7 @@ func main() {
 	}
 	controller := tempcontrol.New(thermometer, fridge, eLog)
 	controller.Set(tempSet, tempSet-tempMargin)
+	defer controller.Close()
 
 	inCh := make(chan byte)
 	go readStdin(eLog, inCh)
