@@ -45,6 +45,8 @@ func main() {
 
 	if *hwsim {
 		ct := chilltest.New(78, 0.05, 0.01)
+		ct.PError = 0.10
+		ct.Delay = 1000 * time.Millisecond
 		thermometer = ct
 		fridge = ct
 	} else {
@@ -64,13 +66,22 @@ func main() {
 			eLog.Fatalf("Fatal error fridge temp sensor init: %s", err)
 		}
 	}
-	controller := tempcontrol.New(thermometer, fridge, eLog)
+	thermMonitor := thermo.NewMonitor(thermometer, 15*time.Second)
+	for i := 0; i < 10; i++ {
+		_, _, _, err := thermMonitor.LastSample()
+		if err == nil {
+			break
+		}
+		eLog.Println("Waiting for thermometer startup...")
+		time.Sleep(time.Second)
+	}
+
+	controller := tempcontrol.New(thermMonitor, fridge, eLog)
 	controller.Set(tempSet, tempSet-tempMargin)
 	defer controller.Close()
 
 	inCh := make(chan byte)
 	go readStdin(eLog, inCh)
-	go sampler(eLog, thermometer, fridge)
 
 	// Wait for signal, shutdown
 	sigCh := make(chan os.Signal, 1)
@@ -80,6 +91,8 @@ func main() {
 		select {
 		case input := <-inCh:
 			switch input {
+			case ' ':
+				eLog.Println(thermMonitor, " ", fridge)
 			case 'a':
 				tempMargin += tempIncr
 			case 'z':
@@ -101,15 +114,6 @@ func main() {
 	}
 }
 
-func sampler(eLog *log.Logger, t thermo.Meter, f tempcontrol.StartStopper) {
-	tick := time.NewTicker(5 * time.Second)
-	for {
-		<-tick.C
-		// TODO: reflect on type, if chilltest then just print one
-		eLog.Println(t, " ", f)
-	}
-}
-
 func readStdin(eLog *log.Logger, inCh chan byte) {
 	doRawInput := false
 
@@ -121,7 +125,7 @@ func readStdin(eLog *log.Logger, inCh chan byte) {
 	}
 
 	for {
-		ch := make([]byte, 1)
+		ch := make([]byte, 64)
 		var n int
 		var err error
 

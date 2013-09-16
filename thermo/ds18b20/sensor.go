@@ -28,32 +28,32 @@ func (d *ds18b20) String() string {
 func (d *ds18b20) Sample() (thermo.F, error) {
 	file, err := os.Open(string(*d))
 	if err != nil {
-		return 0, fmt.Errorf("Opening ds18b20 %s: %s", string(*d), err)
+		return 0, fmt.Errorf("Opening ds18b20: %s", err)
 	}
 
 	read := bufio.NewReader(file)
 	line, err := read.ReadBytes('\n')
 	if err != nil {
-		return 0, fmt.Errorf("Reading ds18b20 %s: %s", string(*d), err)
+		return 0, fmt.Errorf("Reading ds18b20: %s", err)
 	}
 
 	if !bytes.HasSuffix(line, []byte("YES\n")) {
-		return 0, fmt.Errorf("Reading ds18b20 %s: bad crc", string(*d))
+		return 0, fmt.Errorf("Reading ds18b20: bad crc")
 	}
 
 	line, err = read.ReadBytes('\n')
 	if err != nil {
-		return 0, fmt.Errorf("Reading temperature ds18b20 %s: %s", string(*d), err)
+		return 0, fmt.Errorf("Reading temperature ds18b20: %s", err)
 	}
 
 	cidx := bytes.IndexByte(line, '=')
 	if cidx == -1 {
-		return 0, fmt.Errorf("Reading ds18b20 %s: bad format", string(*d))
+		return 0, fmt.Errorf("Reading ds18b20: bad format")
 	}
 
 	n, err := strconv.ParseUint(string(bytes.TrimSpace(line[cidx+1:])), 10, 32)
 	if err != nil {
-		return 0, fmt.Errorf("Error parsing temperature ds18b20 %s: %s", string(*d), err)
+		return 0, fmt.Errorf("Error parsing temperature ds18b20: %s", err)
 	}
 
 	c := thermo.C(float64(n) / 1000)

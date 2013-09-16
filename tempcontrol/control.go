@@ -10,7 +10,7 @@ import (
 )
 
 const (
-	maxTries     = 3
+	maxTries     = 6
 	samplePeriod = 15
 )
 
@@ -36,6 +36,11 @@ type command struct {
 	Set    thermo.F
 	Margin thermo.F
 	Period time.Duration
+}
+
+type tempSample struct {
+	v thermo.F
+	t time.Time
 }
 
 type Thermostat struct {
@@ -101,10 +106,10 @@ func (t *Thermostat) controlLoop() {
 			}
 
 			if t.fridge.IsStopped() && curTemp > c {
-				t.o.Println("Starting compressor.")
+				t.o.Println(curTemp, " Starting compressor.")
 				t.fridge.Start()
 			} else if t.fridge.IsStarted() && curTemp < c-cm {
-				t.o.Println("Stopping compressor.")
+				t.o.Println(curTemp, " Stopping compressor.")
 				t.fridge.Stop()
 			}
 		}
@@ -115,7 +120,7 @@ func (t *Thermostat) controlLoop() {
 		case cmd := <-t.cmds:
 			switch cmd.Action {
 			case setCool:
-				t.o.Println("New setting ", cmd.Set, " -", cmd.Margin)
+				t.o.Println("Cool: ", cmd.Set-cmd.Margin, "-", cmd.Set)
 				c = cmd.Set
 				cm = cmd.Margin
 				cValid = true

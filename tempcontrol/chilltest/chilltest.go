@@ -1,8 +1,10 @@
 package chilltest
 
 import (
+	"errors"
 	"fmt"
 	"kgerator/thermo"
+	"math/rand"
 	"sync"
 	"time"
 )
@@ -20,6 +22,8 @@ type ChillTest struct {
 	t           thermo.F
 	TTime       time.Time
 	lock        sync.Mutex
+	Delay       time.Duration
+	PError      float32
 }
 
 func (ct *ChillTest) String() string {
@@ -33,10 +37,10 @@ func (ct *ChillTest) String() string {
 
 	temp, err := ct.sample()
 	if err != nil {
-		return fmt.Sprint("ChillTest: sample error:", err, " ", state)
+		return fmt.Sprint("ChillTest:  _err_  State:", state)
 	}
 
-	return fmt.Sprint("ChillTest: ", temp, " ", state)
+	return fmt.Sprint("ChillTest: ", temp, " State:", state)
 }
 
 func (ct *ChillTest) Start() error {
@@ -74,6 +78,11 @@ func (ct *ChillTest) Sample() (thermo.F, error) {
 }
 
 func (ct *ChillTest) sample() (thermo.F, error) {
+	time.Sleep(ct.Delay)
+	if rand.Float32() < ct.PError {
+		return 0, errors.New("simulated")
+	}
+
 	now := time.Now()
 	dt := now.Sub(ct.TTime)
 	ct.TTime = now
