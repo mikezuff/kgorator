@@ -2,8 +2,9 @@ package tempcontrol
 
 import (
 	"fmt"
-	"kgerator/tempcontrol/chilltest"
+	"kgerator/refrig"
 	"kgerator/thermo"
+	"kgerator/thermo/chilltest"
 	"log"
 	"os"
 	"testing"
@@ -13,7 +14,8 @@ import (
 func TestTempControl(t *testing.T) {
 	startTemp := thermo.F(70)
 	slew := 0.1
-	ct := chilltest.New(startTemp, slew, false)
+	ct := chilltest.New(startTemp, slew, 0)
+
 	st := New(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
 	st.SamplePeriod(time.Second)
 
@@ -48,7 +50,7 @@ func TestTempControl(t *testing.T) {
 }
 
 func TestSafeShutdown(t *testing.T) {
-	ct := chilltest.New(72, 0.1, false)
+	ct := chilltest.New(72, 0.1, 0)
 	ct.Running = true
 	st := New(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
 

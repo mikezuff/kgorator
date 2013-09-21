@@ -1,0 +1,13 @@
+To make kgerator start when the Raspberry Pi boots:
+
+Add w1-gpio and w1-therm to /etc/modules
+In /etc/inittab, change the tty0 login line that was
+1:2345:respawn:/sbin/getty 38400 tty1
+to be
+1:23:respawn:/sbin/getty -i -a root -l /home/pi/kgerator-install/kgerator -o"" 38400 tty1
+
+mkdir /home/pi/kgerator-install
+cp kgerator /home/pi/kgerator-install/kgerator-vX
+ln -s /home/pi/kgerator-install/kgerator-vX /home/pi/kgerator-install/kgerator
+
+

@@ -2,6 +2,7 @@ package chilltest
 
 import (
 	"errors"
+	rpio "github.com/stianeikeland/go-rpio"
 	"fmt"
 	"kgerator/thermo"
 	"math/rand"
@@ -26,6 +27,17 @@ type ChillTest struct {
 	PError      float32
 }
 
+func (ct *ChillTest) Read() rpio.State {
+	ct.lock.Lock()
+	defer ct.lock.Unlock()
+
+	if ct.Running {
+		return rpio.High
+	} else {
+		return rpio.Low
+	}
+}
+
 func (ct *ChillTest) String() string {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
@@ -43,33 +55,29 @@ func (ct *ChillTest) String() string {
 	return fmt.Sprint("ChillTest: ", temp, " State:", state)
 }
 
-func (ct *ChillTest) Start() error {
+func (ct *ChillTest) High() {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
 	if ct.Running {
-		return nil
+		return
 	}
 
 	ct.sample()
 	ct.Running = true
-	return nil
 }
-func (ct *ChillTest) Stop() error {
+func (ct *ChillTest) Low() {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
 	if !ct.Running {
-		return nil
+		return
 	}
 
 	ct.sample()
 	ct.Running = false
-	return nil
 }
 
-func (ct *ChillTest) IsStarted() bool { return ct.Running }
-func (ct *ChillTest) IsStopped() bool { return !ct.Running }
 func (ct *ChillTest) Sample() (thermo.F, error) {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()

@@ -4,6 +4,7 @@ package tempcontrol
 
 import (
 	"errors"
+	"kgerator/refrig"
 	"kgerator/thermo"
 	"log"
 	"time"
@@ -13,14 +14,6 @@ const (
 	maxTries     = 6
 	samplePeriod = 15
 )
-
-type StartStopper interface {
-	Start() error
-	Stop() error
-	IsStarted() bool
-	IsStopped() bool
-	String() string
-}
 
 type commandAction int
 
@@ -45,12 +38,12 @@ type tempSample struct {
 
 type Thermostat struct {
 	thermo thermo.Meter
-	fridge StartStopper
+	fridge *refrig.Refrig
 	cmds   chan command
 	o      *log.Logger
 }
 
-func New(t thermo.Meter, fridge StartStopper, o *log.Logger) *Thermostat {
+func New(t thermo.Meter, fridge *refrig.Refrig, o *log.Logger) *Thermostat {
 	stat := &Thermostat{t, fridge, make(chan command), o}
 	go stat.controlLoop()
 	return stat
@@ -76,6 +69,12 @@ func (t *Thermostat) SamplePeriod(d time.Duration) {
 	t.cmds <- command{setPeriod, nil, 0, 0, d}
 }
 
+func (t *Thermostat) println(args ...interface{}) {
+	t.o.Println(append([]interface{}{"Controller:"}, args...)...)
+	//t.o.Println("Controller: ", args...)
+	//t.o.Println(args...)
+}
+
 func (t *Thermostat) controlLoop() {
 	//fridge.Subscribe()
 
@@ -96,20 +95,20 @@ func (t *Thermostat) controlLoop() {
 			}
 
 			if err != nil {
-				t.o.Println("Error sampling temperature ", tries, " tries: ", err)
+				t.println("Error sampling temperature ", tries, " tries: ", err)
 				continue
 			}
 
 			if !cValid {
-				t.o.Println("Thermostat waiting for setpoint.")
+				t.println("Thermostat waiting for setpoint.")
 				continue
 			}
 
 			if t.fridge.IsStopped() && curTemp > c {
-				t.o.Println(curTemp, " Starting compressor.")
+				t.println(curTemp, "Starting compressor.")
 				t.fridge.Start()
 			} else if t.fridge.IsStarted() && curTemp < c-cm {
-				t.o.Println(curTemp, " Stopping compressor.")
+				t.println(curTemp, "Stopping compressor.")
 				t.fridge.Stop()
 			}
 		}
@@ -120,21 +119,21 @@ func (t *Thermostat) controlLoop() {
 		case cmd := <-t.cmds:
 			switch cmd.Action {
 			case setCool:
-				t.o.Println("Cool: ", cmd.Set-cmd.Margin, "-", cmd.Set)
+				t.println("set cool ", cmd.Set-cmd.Margin, "-", cmd.Set)
 				c = cmd.Set
 				cm = cmd.Margin
 				cValid = true
 				check <- true
 			case setPeriod:
-				t.o.Println("Sampling every", cmd.Period)
+				t.println("Sampling every", cmd.Period)
 				ticker = time.NewTicker(cmd.Period)
 			case quit:
-				t.o.Println("Turning off compressor for shutdown.")
+				t.println("Turning off compressor for shutdown.")
 				t.fridge.Stop()
 				cmd.Result <- nil
 				return
 			default:
-				t.o.Println("Unknown command: ", cmd.Action)
+				t.println("Unknown command: ", cmd.Action)
 			}
 		case <-ticker.C:
 			check <- true

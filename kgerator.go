@@ -4,61 +4,111 @@ package main
 import (
 	"code.google.com/p/go.crypto/ssh/terminal"
 	"flag"
+	"fmt"
+	rpio "github.com/stianeikeland/go-rpio"
 	"kgerator/refrig"
 	"kgerator/tempcontrol"
-	"kgerator/tempcontrol/chilltest"
 	"kgerator/thermo"
+	"kgerator/thermo/chilltest"
 	"kgerator/thermo/ds18b20"
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
 )
 
 const (
+	relConfigDir        = ".config/kgerator"
+	setPointFilename    = "setpoint"
 	ds18b20Path         = "/sys/bus/w1/devices/28-000004a82f20/w1_slave"
 	REFRIG_PIN          = 17
-	RECOVERY_SEC        = 600
 	SAMPLE_SEC          = 30
 	THERMOMETER_RETRIES = 3
 )
 
 var (
-	tempSet    thermo.F = 72.0
-	tempMargin thermo.F = 2.0
-	tempIncr   thermo.F = 0.25
+	restoreRecovery                = false
+	recoveryDuration time.Duration = 10 * time.Minute
+	tempSet          thermo.F      = 72.0
+	tempMargin       thermo.F      = 2.0
+	tempIncr         thermo.F      = 0.25
+	eLog             *log.Logger
 
 	hwsim = flag.Bool("hwsim", false, "Simulate hardware.")
 )
 
+func buildConfigDir() string {
+	home := os.Getenv("HOME")
+	if home == "" {
+		eLog.Fatal("Can't find user home directory.")
+	}
+
+	return filepath.Join(home, relConfigDir)
+}
+
+func loadSetpoint() error {
+	file, err := os.Open(filepath.Join(buildConfigDir(), setPointFilename))
+	if err != nil {
+		return err
+	}
+
+	var fSet, fMargin float64
+	n, err := fmt.Fscan(file, &fSet, &fMargin)
+	if n != 2 || err != nil {
+		return fmt.Errorf("Corrupt setpoint file %v %v", n, err)
+	}
+
+	tempSet = thermo.F(fSet)
+	tempMargin = thermo.F(fMargin)
+	return nil
+}
+
+func saveSetpoint() error {
+	cd := buildConfigDir()
+	os.MkdirAll(cd, 0744)
+
+	file, err := os.Create(filepath.Join(cd, setPointFilename))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	_, err = fmt.Fprintf(file, "%f %f", float64(tempSet), float64(tempMargin))
+	return err
+}
+
 func main() {
 	flag.Parse()
 
-	eLog, err := openEventLog()
-	if err != nil {
-		panic(err)
-	}
+	eLog = log.New(os.Stdout, "", log.LstdFlags)
 
 	var thermometer thermo.Meter
-	var fridge tempcontrol.StartStopper
+	var fridgeControlPin refrig.Pin
 
 	if *hwsim {
 		ct := chilltest.New(78, 0.05, 0.01)
 		ct.PError = 0.10
 		ct.Delay = 1000 * time.Millisecond
 		thermometer = ct
-		fridge = ct
+		//simRecoveryDuration := time.Minute + time.Second*3
+		simRecoveryDuration := time.Second * 3
+		eLog.Printf("Overriding duration %v with %v", recoveryDuration, simRecoveryDuration)
+		recoveryDuration = simRecoveryDuration
+		restoreRecovery = true // TODO: persist recovery instead of forcing it
+		fridgeControlPin = ct
 	} else {
-		// TODO: these devices could offer a pub/sub model that the main could
-		// use to mix with logging or to take action on events like waiting on
-		// fridge Recover->Stop
-		realFridge, err := refrig.New("Fridge", REFRIG_PIN, RECOVERY_SEC*time.Second)
+		err := rpio.Open()
 		if err != nil {
-			eLog.Fatalf("Fatal error fridge init: %s", err)
+			eLog.Fatalf("Error opening RPIO: %s", err)
 		}
-		defer realFridge.Close()
-		fridge = realFridge
+
+		rpiPin := rpio.Pin(REFRIG_PIN)
+		rpiPin.Output()
+		rpiPin.Low()
+		restoreRecovery = true // TODO: persist recovery instead of forcing it
+		fridgeControlPin = rpiPin
 
 		thermometer, err = ds18b20.Open(ds18b20Path)
 		if err != nil {
@@ -66,6 +116,13 @@ func main() {
 			eLog.Fatalf("Fatal error fridge temp sensor init: %s", err)
 		}
 	}
+
+	fridge := refrig.New("Fridge", fridgeControlPin, recoveryDuration)
+
+	if restoreRecovery {
+		fridge.SetRecovery()
+	}
+
 	thermMonitor := thermo.NewMonitor(thermometer, 15*time.Second)
 	for i := 0; i < 10; i++ {
 		_, _, _, err := thermMonitor.LastSample()
@@ -77,6 +134,19 @@ func main() {
 	}
 
 	controller := tempcontrol.New(thermMonitor, fridge, eLog)
+
+	err := loadSetpoint()
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = saveSetpoint()
+			if err != nil {
+				eLog.Println("Error creating setpoint file:", err)
+			}
+		} else {
+			eLog.Fatalf("Error loading setpoint: %s", err)
+		}
+	}
+
 	controller.Set(tempSet, tempSet-tempMargin)
 	defer controller.Close()
 
@@ -94,9 +164,9 @@ func main() {
 			case ' ':
 				eLog.Println(thermMonitor, " ", fridge)
 			case 'a':
-				tempMargin += tempIncr
-			case 'z':
 				tempMargin -= tempIncr
+			case 'z':
+				tempMargin += tempIncr
 			case '+', '=':
 				tempSet += tempIncr
 			case '-', '_':
@@ -105,12 +175,17 @@ func main() {
 				return
 			}
 
+			saveSetpoint()
 			controller.Set(tempSet, tempSet-tempMargin)
 
 		case sig := <-sigCh:
 			eLog.Println("Got signal", sig, ". Shutting down.")
 			return
 		}
+	}
+
+	if !*hwsim {
+		rpio.Close()
 	}
 }
 
@@ -142,9 +217,4 @@ func readStdin(eLog *log.Logger, inCh chan byte) {
 			eLog.Println("Error on stdin: ", err)
 		}
 	}
-}
-
-func openEventLog() (*log.Logger, error) {
-	// TODO: is this going to a file?
-	return log.New(os.Stdout, "", log.LstdFlags), nil
 }
