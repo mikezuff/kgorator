@@ -7,9 +7,7 @@ import (
 	"fmt"
 	rpio "github.com/stianeikeland/go-rpio"
 	"kgerator/refrig"
-	"kgerator/tempcontrol"
 	"kgerator/thermo"
-	"kgerator/thermo/chilltest"
 	"kgerator/thermo/ds18b20"
 	"log"
 	"os"
@@ -19,18 +17,21 @@ import (
 	"time"
 )
 
+// Input/Output constants
 const (
-	relConfigDir        = ".config/kgerator"
-	setPointFilename    = "setpoint"
-	ds18b20Path         = "/sys/bus/w1/devices/28-000004a82f20/w1_slave"
-	REFRIG_PIN          = 17
-	SAMPLE_SEC          = 30
-	THERMOMETER_RETRIES = 3
+	ds18b20Path = "/sys/bus/w1/devices/28-000004a82f20/w1_slave"
+	refrigPin   = 17
+)
+
+const (
+	relConfigDir     = ".config/kgerator"
+	setPointFilename = "setpoint"
 )
 
 var (
 	restoreRecovery                = false
 	recoveryDuration time.Duration = 10 * time.Minute
+	samplePeriod                   = 15 * time.Second
 	tempSet          thermo.F      = 72.0
 	tempMargin       thermo.F      = 2.0
 	tempIncr         thermo.F      = 0.25
@@ -88,23 +89,24 @@ func main() {
 	var fridgeControlPin refrig.Pin
 
 	if *hwsim {
-		ct := chilltest.New(78, 0.05, 0.01)
-		ct.PError = 0.10
-		ct.Delay = 1000 * time.Millisecond
-		thermometer = ct
-		//simRecoveryDuration := time.Minute + time.Second*3
-		simRecoveryDuration := time.Second * 3
-		eLog.Printf("Overriding duration %v with %v", recoveryDuration, simRecoveryDuration)
-		recoveryDuration = simRecoveryDuration
-		restoreRecovery = true // TODO: persist recovery instead of forcing it
-		fridgeControlPin = ct
+		sim := thermo.NewFridgeSim(78, 0.15, 0.11)
+		sim.PError = 0.10
+		sim.Delay = 1000 * time.Millisecond
+
+		thermometer = sim
+		fridgeControlPin = sim
+
+		recoveryDuration = time.Second * 3
+		samplePeriod = time.Second * 3
+		eLog.Printf("Overriding sample and recovery periods for simulation.")
+		restoreRecovery = true
 	} else {
 		err := rpio.Open()
 		if err != nil {
 			eLog.Fatalf("Error opening RPIO: %s", err)
 		}
 
-		rpiPin := rpio.Pin(REFRIG_PIN)
+		rpiPin := rpio.Pin(refrigPin)
 		rpiPin.Output()
 		rpiPin.Low()
 		restoreRecovery = true // TODO: persist recovery instead of forcing it
@@ -112,7 +114,6 @@ func main() {
 
 		thermometer, err = ds18b20.Open(ds18b20Path)
 		if err != nil {
-			// TODO: does eLog writer need to be closed on exit?
 			eLog.Fatalf("Fatal error fridge temp sensor init: %s", err)
 		}
 	}
@@ -123,7 +124,7 @@ func main() {
 		fridge.SetRecovery()
 	}
 
-	thermMonitor := thermo.NewMonitor(thermometer, 15*time.Second)
+	thermMonitor := thermo.NewMonitor(thermometer, samplePeriod)
 	for i := 0; i < 10; i++ {
 		_, _, _, err := thermMonitor.LastSample()
 		if err == nil {
@@ -133,7 +134,8 @@ func main() {
 		time.Sleep(time.Second)
 	}
 
-	controller := tempcontrol.New(thermMonitor, fridge, eLog)
+	controller := thermo.NewThermostat(thermMonitor, fridge, eLog)
+	defer controller.Close()
 
 	err := loadSetpoint()
 	if err != nil {
@@ -148,7 +150,6 @@ func main() {
 	}
 
 	controller.Set(tempSet, tempSet-tempMargin)
-	defer controller.Close()
 
 	inCh := make(chan byte)
 	go readStdin(eLog, inCh)
@@ -184,6 +185,7 @@ func main() {
 		}
 	}
 
+	// XXX: should be abstracted into a general object..
 	if !*hwsim {
 		rpio.Close()
 	}

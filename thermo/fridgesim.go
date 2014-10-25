@@ -1,33 +1,35 @@
-package chilltest
+package thermo
 
 import (
 	"errors"
-	rpio "github.com/stianeikeland/go-rpio"
 	"fmt"
-	"kgerator/thermo"
+	rpio "github.com/stianeikeland/go-rpio"
 	"math/rand"
 	"sync"
 	"time"
+    "kgerator/refrig"
 )
 
-func New(start thermo.F, coolingPerSec float64, warmingPerSec float64) *ChillTest {
-	return &ChillTest{t: start, CoolingRate: coolingPerSec, TTime: time.Now(), WarmingRate: warmingPerSec}
+func NewFridgeSim(start F, coolingPerSec float64, warmingPerSec float64) *FridgeSim {
+	return &FridgeSim{t: start, CoolingRate: coolingPerSec, TTime: time.Now(), WarmingRate: warmingPerSec}
 }
 
-var _ thermo.Meter = &ChillTest{}
+var _ Meter = &FridgeSim{}
+var _ refrig.Pin = &FridgeSim{}
 
-type ChillTest struct {
+// FridgeSim is a simulated refrigerator. It implements thermo.Meter and refrig.Pin
+type FridgeSim struct {
 	WarmingRate float64
 	Running     bool
 	CoolingRate float64
-	t           thermo.F
+	t           F
 	TTime       time.Time
 	lock        sync.Mutex
 	Delay       time.Duration
 	PError      float32
 }
 
-func (ct *ChillTest) Read() rpio.State {
+func (ct *FridgeSim) Read() rpio.State {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
@@ -38,7 +40,7 @@ func (ct *ChillTest) Read() rpio.State {
 	}
 }
 
-func (ct *ChillTest) String() string {
+func (ct *FridgeSim) String() string {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
@@ -49,13 +51,13 @@ func (ct *ChillTest) String() string {
 
 	temp, err := ct.sample()
 	if err != nil {
-		return fmt.Sprint("ChillTest:  _err_  State:", state)
+		return fmt.Sprint("FridgeSim:  _err_  State:", state)
 	}
 
-	return fmt.Sprint("ChillTest: ", temp, " State:", state)
+	return fmt.Sprint("FridgeSim: ", temp, " State:", state)
 }
 
-func (ct *ChillTest) High() {
+func (ct *FridgeSim) High() {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
@@ -66,7 +68,7 @@ func (ct *ChillTest) High() {
 	ct.sample()
 	ct.Running = true
 }
-func (ct *ChillTest) Low() {
+func (ct *FridgeSim) Low() {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
@@ -78,14 +80,14 @@ func (ct *ChillTest) Low() {
 	ct.Running = false
 }
 
-func (ct *ChillTest) Sample() (thermo.F, error) {
+func (ct *FridgeSim) Sample() (F, error) {
 	ct.lock.Lock()
 	defer ct.lock.Unlock()
 
 	return ct.sample()
 }
 
-func (ct *ChillTest) sample() (thermo.F, error) {
+func (ct *FridgeSim) sample() (F, error) {
 	time.Sleep(ct.Delay)
 	if rand.Float32() < ct.PError {
 		return 0, errors.New("simulated")
@@ -96,9 +98,9 @@ func (ct *ChillTest) sample() (thermo.F, error) {
 	ct.TTime = now
 
 	if ct.Running {
-		ct.t -= thermo.F(dt.Seconds() * ct.CoolingRate)
+		ct.t -= F(dt.Seconds() * ct.CoolingRate)
 	} else {
-		ct.t += thermo.F(dt.Seconds() * ct.WarmingRate)
+		ct.t += F(dt.Seconds() * ct.WarmingRate)
 	}
 
 	return ct.t, nil

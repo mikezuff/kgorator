@@ -19,9 +19,6 @@ func (c C) String() string {
 	return fmt.Sprintf("%.2f°C", float64(c))
 }
 
-var c C = 10
-var f F = F(c)
-
 func FtoC(f F) C {
 	return C((f - 32) * 5 / 9)
 }
@@ -32,7 +29,6 @@ func CtoF(c C) F {
 
 type Meter interface {
 	Sample() (F, error)
-	String() string
 }
 
 type Sample struct {
@@ -114,5 +110,8 @@ func (mon *Monitor) loop() {
 		mon.lock.Unlock()
 
 		time.Sleep(mon.t)
+        // TODO: there should be only one sampling period
+        // either here or in control.controlLoop
+        // what's the point of a monitor anyaway?
 	}
 }

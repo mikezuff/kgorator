@@ -45,6 +45,9 @@ var stateNames []string = []string{
 	"Recover",
 }
 
+// Refrig is an on/off controller with a recovery period between turning off and
+// turning back on again. It is intended to be a failsafe module, but it's just plain funky.
+// This needs to be in thermo.Stat
 type Refrig struct {
 	name     string
 	recovery time.Duration
@@ -112,6 +115,7 @@ func (r *Refrig) IsStopped() bool {
 	return r.state == Stop
 }
 
+// SetRecovery sets the pin low and starts the Recover state.
 func (r *Refrig) SetRecovery() {
 	r.lock.Lock()
 	defer r.lock.Unlock()

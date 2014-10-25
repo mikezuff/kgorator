@@ -1,10 +1,7 @@
-package tempcontrol
+package thermo
 
 import (
 	"fmt"
-	"kgerator/refrig"
-	"kgerator/thermo"
-	"kgerator/thermo/chilltest"
 	"log"
 	"os"
 	"testing"
@@ -12,19 +9,20 @@ import (
 )
 
 func TestTempControl(t *testing.T) {
-	startTemp := thermo.F(70)
+	startTemp := F(70)
 	slew := 0.1
-	ct := chilltest.New(startTemp, slew, 0)
+	ct := NewFridgeSim(startTemp, slew, 0)
 
-	st := New(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
+    // the refrig idea is fucked up. The recovery period should be built into the thermo.Stat.
+	st := NewThermostat(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
 	st.SamplePeriod(time.Second)
 
-	setTemp := thermo.F(69)
-	minTemp := thermo.F(66)
+	setTemp := F(69)
+	minTemp := F(66)
 	st.Set(setTemp, minTemp)
 
 	// Allow a little overshoot.
-	minTemp -= thermo.F(0.25)
+	minTemp -= F(0.25)
 
 	testDuration := time.Duration(float64(startTemp-minTemp)/slew+1) * time.Second
 
@@ -50,9 +48,9 @@ func TestTempControl(t *testing.T) {
 }
 
 func TestSafeShutdown(t *testing.T) {
-	ct := chilltest.New(72, 0.1, 0)
+	ct := NewFridgeSim(72, 0.1, 0)
 	ct.Running = true
-	st := New(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
+	st := NewThermostat(ct, ct, log.New(os.Stdout, "", log.LstdFlags))
 
 	if !ct.Running {
 		t.Error("Chiller was shutdown by unset thermostat.")

@@ -1,3 +1,5 @@
+// ds18b20 implements kgerator/thermo.Meter for the ds18b20 1-Wire thermometer
+// http://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
 package ds18b20
 
 import (
@@ -9,6 +11,7 @@ import (
 	"strconv"
 )
 
+// Open returns a thermo.Meter using the ds18b20 device at path.
 func Open(path string) (thermo.Meter, error) {
 	d := ds18b20(path)
 	return &d, nil
