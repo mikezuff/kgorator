@@ -3,11 +3,12 @@ package main
 
 import (
 	"fmt"
-	"kgerator/thermo/ds18b20"
+	"io"
 	"log"
 	"os"
 	"time"
-    "io"
+
+	"github.com/mikezuff/kgorator/thermo/ds18b20"
 )
 
 const ds18b20Path = "/sys/bus/w1/devices/28-000004a82f20/w1_slave"

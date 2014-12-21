@@ -1,4 +1,4 @@
-// ds18b20 implements kgerator/thermo.Meter for the ds18b20 1-Wire thermometer
+// ds18b20 implements kgorator/thermo.Meter for the ds18b20 1-Wire thermometer
 // http://datasheets.maximintegrated.com/en/ds/DS18B20.pdf
 package ds18b20
 
@@ -6,9 +6,10 @@ import (
 	"bufio"
 	"bytes"
 	"fmt"
-	"kgerator/thermo"
 	"os"
 	"strconv"
+
+	"github.com/mikezuff/kgorator/thermo"
 )
 
 // Open returns a thermo.Meter using the ds18b20 device at path.

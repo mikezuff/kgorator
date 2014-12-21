@@ -18,3 +18,5 @@ Raw term mode (single char setting)
 Device logging
 Statistics (duty cycle, ontime, offtime, cycles)
 Persistent statistics
+Persist to a proper place instead of /.config when run from getty
+

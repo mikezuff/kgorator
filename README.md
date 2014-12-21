@@ -5,9 +5,13 @@ kgorator supports
 * persistent setpoints
 * compressor recovery period
 
+Simulation Mode
+===============
+Try it out in hardware simulation mode with the _-hwsim_ flag
+
 Building for Raspberry Pi
 =========================
-[Cross compile](https://coderwall.com/p/pnfwxg) go for RPi (ARM):
+[Cross compile](https://coderwall.com/p/pnfwxg) Go for RPi (ARM):
     cd $GOROOT/src
     GOOS=linux GOARCH=arm ./make.bash
 
@@ -29,3 +33,11 @@ In /etc/inittab, change the tty0 login line that was
 to be
     1:23:respawn:/sbin/getty -i -a pi -l /usr/local/bin/kgorator -o"" 38400 tty1
 
+To upgrade kgorator you can't just copy the new binary to /usr/local/bin/kgorator, you'll get an error "Text file busy". If you go to runlevel 1 the init process will stop kgorator, then you can make the copy.
+    init 1
+    cp ~/kgorator /usr/local/bin
+    init 2
+
+Temperature Logger
+==================
+cmds/thermlog contains utility to log temperatures to a file

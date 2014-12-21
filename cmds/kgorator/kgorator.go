@@ -2,22 +2,20 @@
 package main
 
 import (
-	"code.google.com/p/go.crypto/ssh/terminal"
-
 	"flag"
 	"fmt"
-
-	rpio "github.com/stianeikeland/go-rpio"
-
-	"kgerator/refrig"
-	"kgerator/thermo"
-	"kgerator/thermo/ds18b20"
 	"log"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"syscall"
 	"time"
+
+	"code.google.com/p/go.crypto/ssh/terminal"
+	"github.com/mikezuff/kgorator/refrig"
+	"github.com/mikezuff/kgorator/thermo"
+	"github.com/mikezuff/kgorator/thermo/ds18b20"
+	rpio "github.com/stianeikeland/go-rpio"
 )
 
 // Input/Output constants
@@ -27,7 +25,7 @@ const (
 )
 
 const (
-	relConfigDir     = ".config/kgerator"
+	relConfigDir     = ".config/kgorator"
 	setPointFilename = "setpoint"
 )
 

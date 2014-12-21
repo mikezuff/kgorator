@@ -3,9 +3,10 @@ package thermo
 import (
 	"errors"
 	"fmt"
-	"kgerator/refrig"
 	"log"
 	"time"
+
+	"github.com/mikezuff/kgorator/refrig"
 )
 
 const (

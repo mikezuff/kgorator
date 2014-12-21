@@ -3,11 +3,12 @@ package thermo
 import (
 	"errors"
 	"fmt"
-	rpio "github.com/stianeikeland/go-rpio"
 	"math/rand"
 	"sync"
 	"time"
-    "kgerator/refrig"
+
+	"github.com/mikezuff/kgorator/refrig"
+	rpio "github.com/stianeikeland/go-rpio"
 )
 
 func NewFridgeSim(start F, coolingPerSec float64, warmingPerSec float64) *FridgeSim {
