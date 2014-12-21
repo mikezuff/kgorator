@@ -3,9 +3,12 @@ package main
 
 import (
 	"code.google.com/p/go.crypto/ssh/terminal"
+
 	"flag"
 	"fmt"
+
 	rpio "github.com/stianeikeland/go-rpio"
+
 	"kgerator/refrig"
 	"kgerator/thermo"
 	"kgerator/thermo/ds18b20"
@@ -50,7 +53,9 @@ func buildConfigDir() string {
 }
 
 func loadSetpoint() error {
-	file, err := os.Open(filepath.Join(buildConfigDir(), setPointFilename))
+	filespec := filepath.Join(buildConfigDir(), setPointFilename)
+	eLog.Println("Loading setpoint from", filespec)
+	file, err := os.Open(filespec)
 	if err != nil {
 		return err
 	}
@@ -164,6 +169,15 @@ func main() {
 			switch input {
 			case ' ':
 				eLog.Println(thermMonitor, " ", fridge)
+			case '?':
+				eLog.Println(thermMonitor, " ", fridge)
+				eLog.Println("commands:")
+				eLog.Println("space - print current temperature, controller state, and setpoints")
+				eLog.Println("+/= - increase on setpoint")
+				eLog.Println("-   - decrease on setpoint")
+				eLog.Println("a - increase off setpoint")
+				eLog.Println("z - decrease off setpoint")
+				eLog.Println("q - quit")
 			case 'a':
 				tempMargin -= tempIncr
 			case 'z':

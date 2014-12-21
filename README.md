@@ -1,24 +1,31 @@
+kgorator is a cooling thermostat for your Raspberry PI. It's meant to be wired to control an outlet using a [relay](https://www.sparkfun.com/products/11042) wired to pin 17, and a 1-Wire temperature sensor [ds18b20](http://www.adafruit.com/products/381) wired to GPIO #4. Adafruit has a [good tutorial](https://learn.adafruit.com/adafruits-raspberry-pi-lesson-11-ds18b20-temperature-sensing/overview) on this.
+
+kgorator supports
+* configurable hysteresis
+* persistent setpoints
+* compressor recovery period
+
 Building for Raspberry Pi
 =========================
-Build go for RPi: GOOS=linux GOARCH=arm
-GOOS=linux GOARCH=arm ./make.bash
-https://coderwall.com/p/pnfwxg
+[Cross compile](https://coderwall.com/p/pnfwxg) go for RPi (ARM):
+    cd $GOROOT/src
+    GOOS=linux GOARCH=arm ./make.bash
 
 Build kgorator for RPi
-GOOS=linux GOARCH=arm go build kgorator.go
+    cd $GOPATH/src/github.com/mikezuff/kgorator
+    GOOS=linux GOARCH=arm go build ./cmds/kgorator
 
-Autorun
-=======
-To make kgorator start when the Raspberry Pi boots:
+Auto Run
+========
+To make kgorator resilient to power failures and easy to use you can use it to replace the normal login on the default terminal. Instead of a login prompt you'll get kgorator. 
 
-Add w1-gpio and w1-therm to /etc/modules
+Install the binary
+    sudo cp kgorator /usr/local/bin/kgorator
+Add to /etc/modules
+    w1-gpio
+    w1-therm
 In /etc/inittab, change the tty0 login line that was
-1:2345:respawn:/sbin/getty 38400 tty1
+    1:2345:respawn:/sbin/getty 38400 tty1
 to be
-1:23:respawn:/sbin/getty -i -a root -l /home/pi/kgorator-install/kgorator -o"" 38400 tty1
-
-mkdir /home/pi/kgorator-install
-cp kgorator /home/pi/kgorator-install/kgorator-vX
-ln -s /home/pi/kgorator-install/kgorator-vX /home/pi/kgorator-install/kgorator
-
+    1:23:respawn:/sbin/getty -i -a pi -l /usr/local/bin/kgorator -o"" 38400 tty1
 

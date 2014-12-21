@@ -5,6 +5,8 @@
 
 =Persistent settings
 =Autostart on boot
+=Help on '?'
+
 Temporary On (I want light! Enforce a min -1F from setting or 5 min.)
 Persistent compressor recovery
 Always recovery after power cycle while running
@@ -13,7 +15,6 @@ Duration of last cycle
 Recovery override
 Pub/sub on state change
 Raw term mode (single char setting)
-Help on '?'
 Device logging
 Statistics (duty cycle, ontime, offtime, cycles)
 Persistent statistics
